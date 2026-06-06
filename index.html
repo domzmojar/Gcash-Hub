@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- CashHub PH v31 — SW fix + @keyframes fix -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -11,167 +10,6 @@
 <meta name="theme-color" content="#FF6B00">
 <meta name="description" content="GCash merchant transaction recorder with receipt scanning">
 <title>CashHub PH</title>
-<!-- PWA icons and manifest are injected at runtime via JS below -->
-<script>
-// ── PWA ICON GENERATOR ──────────────────────────────────────────────────
-// Draws the CashHub icon on a canvas and returns a data URL
-function _makePwaIcon(size){
-  const c=document.createElement('canvas');
-  c.width=c.height=size;
-  const x=c.getContext('2d');
-  const r=size*0.18; // corner radius
-  // Rounded rect background
-  x.beginPath();
-  x.moveTo(r,0);x.lineTo(size-r,0);x.quadraticCurveTo(size,0,size,r);
-  x.lineTo(size,size-r);x.quadraticCurveTo(size,size,size-r,size);
-  x.lineTo(r,size);x.quadraticCurveTo(0,size,0,size-r);
-  x.lineTo(0,r);x.quadraticCurveTo(0,0,r,0);x.closePath();
-  const grad=x.createLinearGradient(0,0,size,size);
-  grad.addColorStop(0,'#FF6B00');grad.addColorStop(1,'#FF9640');
-  x.fillStyle=grad;x.fill();
-  // White circle backdrop
-  x.beginPath();x.arc(size*0.5,size*0.44,size*0.28,0,Math.PI*2);
-  x.fillStyle='rgba(255,255,255,0.18)';x.fill();
-  // "₱" peso sign
-  x.fillStyle='#fff';
-  x.font=`bold ${size*0.38}px -apple-system,sans-serif`;
-  x.textAlign='center';x.textBaseline='middle';
-  x.fillText('₱',size*0.5,size*0.44);
-  // "CashHub" wordmark tiny
-  x.font=`bold ${size*0.1}px -apple-system,sans-serif`;
-  x.fillStyle='rgba(255,255,255,0.9)';
-  x.fillText('CashHub PH',size*0.5,size*0.78);
-  return c.toDataURL('image/png');
-}
-
-// ── INJECT MANIFEST as blob link ─────────────────────────────────────────
-function _injectPwaManifest(){
-  const icon192=_makePwaIcon(192);
-  const icon512=_makePwaIcon(512);
-  // Store icons globally for apple touch icon
-  window._pwaIcon192=icon192;
-  window._pwaIcon512=icon512;
-  const manifest={
-    name:'CashHub PH',
-    short_name:'CashHub',
-    description:'GCash merchant transaction recorder',
-    start_url:'./',
-    display:'standalone',
-    orientation:'portrait',
-    background_color:'#FF6B00',
-    theme_color:'#FF6B00',
-    icons:[
-      {src:icon192,sizes:'192x192',type:'image/png',purpose:'any maskable'},
-      {src:icon512,sizes:'512x512',type:'image/png',purpose:'any maskable'}
-    ]
-  };
-  const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const link=document.createElement('link');
-  link.rel='manifest';link.href=url;
-  document.head.appendChild(link);
-  // Apple touch icon
-  const iconLink=document.createElement('link');
-  iconLink.rel='apple-touch-icon';iconLink.href=icon192;
-  document.head.appendChild(iconLink);
-  // Apple splash / startup image (basic)
-  const metaApple=document.createElement('meta');
-  metaApple.name='apple-mobile-web-app-status-bar-style';
-  metaApple.content='black-translucent';
-  document.head.appendChild(metaApple);
-}
-
-// ── SERVICE WORKER (inline via blob) ────────────────────────────────────
-function _registerServiceWorker(){
-  if(!('serviceWorker' in navigator)){
-    console.log('[CashHub PWA] SW not supported in this browser');
-    return;
-  }
-  // SW source lives in a hidden <script id="cashhub-sw-src"> tag.
-  // Reading it as textContent sidesteps the blob: URL protocol block.
-  const swSrc = document.getElementById('cashhub-sw-src');
-  if(!swSrc){ console.warn('[CashHub PWA] SW source tag missing'); return; }
-  try{
-    const blob = new Blob([swSrc.textContent], {type:'text/javascript'});
-    const swUrl = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl)
-      .then(reg=>{
-        console.log('[CashHub PWA] SW registered');
-        URL.revokeObjectURL(swUrl);
-      })
-      .catch(err=>{
-        console.info('[CashHub PWA] SW unavailable in this context:', err.message);
-      });
-  }catch(e){
-    console.info('[CashHub PWA] SW setup skipped:', e.message);
-  }
-});
-self.addEventListener('activate',e=>{
-  e.waitUntil(
-    caches.keys().then(keys=>Promise.all(
-      keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))
-    )).then(()=>self.clients.claim())
-  );
-});
-self.addEventListener('fetch',e=>{
-  // Cache-first for the HTML file, network-first for everything else
-  if(e.request.mode==='navigate'){
-    e.respondWith(
-      fetch(e.request).then(r=>{
-        const clone=r.clone();
-        caches.open(CACHE).then(c=>c.put(e.request,clone));
-        return r;
-      }).catch(()=>caches.match(e.request).then(r=>r||caches.match('./')))
-    );
-  } else {
-    e.respondWith(
-      caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>new Response('',{status:408})))
-    );
-  }
-});
-`;
-  try{
-    const blob=new Blob([swCode],{type:'text/javascript'});
-    const swUrl=URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl,{scope:'./'})
-      .then(reg=>{
-        console.log('[CashHub PWA] Service worker registered',reg.scope);
-      })
-      .catch(err=>{
-        // Blob SW may fail in some browsers (Firefox, Safari) — that's OK
-        // The app still works, just without offline SW caching
-        console.warn('[CashHub PWA] SW registration skipped:',err.message);
-      });
-  }catch(e){
-    console.warn('[CashHub PWA] SW blob creation failed:',e.message);
-  }
-}
-
-// ── BACK BUTTON TRAP ────────────────────────────────────────────────────
-// Push a dummy state so Android back button doesn't exit the app
-function _initBackButtonTrap(){
-  if(window.history&&window.history.pushState){
-    window.history.pushState({cashhub:true},'','');
-    window.addEventListener('popstate',function(e){
-      // Re-push so the next back press is also trapped
-      window.history.pushState({cashhub:true},'','');
-      // If on a sub-screen, go back to dashboard instead of exiting
-      const active=document.querySelector('.screen.active');
-      if(active&&active.id!=='screen-dashboard'){
-        if(typeof showTab==='function') showTab('dashboard');
-      }
-      // If already on dashboard, do nothing (don't exit)
-    });
-  }
-}
-
-// Run all PWA setup after DOM is ready
-document.addEventListener('DOMContentLoaded',function(){
-  _injectPwaManifest();
-  _registerServiceWorker();
-  _initBackButtonTrap();
-});
-</script>
 <style>
 /* ══ TABLER ICON SUBSET (SVG sprites) ══ */
 .ti{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;line-height:1}
@@ -190,8 +28,6 @@ document.addEventListener('DOMContentLoaded',function(){
 .ti-info-circle::before,.ti-circle-check::before,.ti-camera-off::before,.ti-x::before,
 .ti-arrow-right::before,.ti-check::before,.ti-pencil::before{content:none}
 
-/* ── PWA BANNER ANIMATION ── */
-@keyframes slideUpBanner{from{transform:translateY(100%)}to{transform:translateY(0)}}
 /* ════════ RESET & ROOT ════════ */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -602,16 +438,103 @@ body.modal-open{overflow:hidden;position:fixed;width:100%}
   padding:9px 20px;cursor:pointer;font-family:var(--font)}
 .wt-highlight{position:absolute;border-radius:12px;box-shadow:0 0 0 4px #FF6B00,0 0 0 8px rgba(255,107,0,0.25);
   pointer-events:none;transition:all 0.35s;z-index:10001}
+/* ── PWA ── */
+@keyframes slideUpBanner{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.pwa-install-banner{display:none;position:fixed;bottom:0;left:0;right:0;z-index:11000;
+  padding:12px 16px 28px;background:#fff;border-top:1px solid var(--border);
+  box-shadow:0 -4px 20px rgba(0,0,0,0.12)}
+.pwa-install-banner.visible{display:block;animation:slideUpBanner 0.35s ease forwards}
 </style>
+<script>
+// ── PWA SETUP (runs before body renders) ──────────────────────────────────
+function _makePwaIcon(size){
+  var c=document.createElement('canvas');
+  c.width=c.height=size;
+  var x=c.getContext('2d');
+  var r=size*0.18;
+  x.beginPath();x.moveTo(r,0);x.lineTo(size-r,0);x.quadraticCurveTo(size,0,size,r);
+  x.lineTo(size,size-r);x.quadraticCurveTo(size,size,size-r,size);
+  x.lineTo(r,size);x.quadraticCurveTo(0,size,0,size-r);
+  x.lineTo(0,r);x.quadraticCurveTo(0,0,r,0);x.closePath();
+  var g=x.createLinearGradient(0,0,size,size);
+  g.addColorStop(0,'#FF6B00');g.addColorStop(1,'#FF9640');
+  x.fillStyle=g;x.fill();
+  x.fillStyle='rgba(255,255,255,0.18)';
+  x.beginPath();x.arc(size*0.5,size*0.44,size*0.28,0,Math.PI*2);x.fill();
+  x.fillStyle='#fff';
+  x.font='bold '+Math.round(size*0.38)+'px -apple-system,sans-serif';
+  x.textAlign='center';x.textBaseline='middle';
+  x.fillText('₱',size*0.5,size*0.44);
+  x.font='bold '+Math.round(size*0.1)+'px -apple-system,sans-serif';
+  x.fillStyle='rgba(255,255,255,0.9)';
+  x.fillText('CashHub PH',size*0.5,size*0.78);
+  return c.toDataURL('image/png');
+}
+
+function _injectPwaManifest(){
+  var icon192=_makePwaIcon(192);
+  var icon512=_makePwaIcon(512);
+  window._pwaIcon192=icon192;
+  var manifest={
+    name:'CashHub PH',short_name:'CashHub',
+    description:'GCash merchant transaction recorder',
+    start_url:'./',display:'standalone',orientation:'portrait',
+    background_color:'#FF6B00',theme_color:'#FF6B00',
+    icons:[
+      {src:icon192,sizes:'192x192',type:'image/png',purpose:'any maskable'},
+      {src:icon512,sizes:'512x512',type:'image/png',purpose:'any maskable'}
+    ]
+  };
+  var blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+  var link=document.createElement('link');
+  link.rel='manifest';link.href=URL.createObjectURL(blob);
+  document.head.appendChild(link);
+  var al=document.createElement('link');
+  al.rel='apple-touch-icon';al.href=icon192;
+  document.head.appendChild(al);
+}
+
+function _registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return;
+  // SW code lives in <script id="cashhub-sw" type="text/plain">
+  // type="text/plain" = browser ignores it as JS; we read textContent manually
+  var swTag=document.getElementById('cashhub-sw');
+  if(!swTag){console.warn('[PWA] SW tag not found');return;}
+  try{
+    var blob=new Blob([swTag.textContent],{type:'text/javascript'});
+    var url=URL.createObjectURL(blob);
+    navigator.serviceWorker.register(url)
+      .then(function(reg){console.log('[PWA] SW registered');URL.revokeObjectURL(url);})
+      .catch(function(e){console.info('[PWA] SW skipped:',e.message);});
+  }catch(e){console.info('[PWA] SW error:',e.message);}
+}
+
+function _initBackButtonTrap(){
+  if(!window.history||!window.history.pushState) return;
+  window.history.pushState({ch:1},'','');
+  window.addEventListener('popstate',function(){
+    window.history.pushState({ch:1},'','');
+    var active=document.querySelector('.screen.active');
+    if(active&&active.id!=='screen-dashboard'&&typeof showTab==='function')
+      showTab('dashboard');
+  });
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  _injectPwaManifest();
+  _registerServiceWorker();
+  _initBackButtonTrap();
+});
+</script>
 </head>
 <body>
-<!-- ═══════════ PWA INSTALL PROMPT ═══════════ -->
-<div id="pwa-install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:11000;padding:12px 16px 24px;background:#fff;border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,0.12)">
+<!-- PWA install banner -->
+<div id="pwa-install-banner" class="pwa-install-banner">
   <div style="display:flex;align-items:center;gap:12px">
     <canvas id="pwa-install-icon" width="48" height="48" style="border-radius:11px;flex-shrink:0"></canvas>
     <div style="flex:1;min-width:0">
       <div style="font-size:14px;font-weight:700;color:var(--text)">Install CashHub PH</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:1px">Add to home screen — works offline, no browser bar</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:1px">Add to home screen — no browser bar, works offline</div>
     </div>
     <button onclick="dismissInstallBanner()" style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text3)">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -619,12 +542,9 @@ body.modal-open{overflow:hidden;position:fixed;width:100%}
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
     <button onclick="dismissInstallBanner()" style="background:var(--bg3);border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;font-family:var(--font)">Not now</button>
-    <button id="pwa-install-btn" onclick="triggerPwaInstall()" style="background:var(--orange);border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--font)">
-      Install App
-    </button>
+    <button onclick="triggerPwaInstall()" style="background:var(--orange);border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--font)">Install App</button>
   </div>
 </div>
-
 <div class="app" id="app">
 <!-- Walkthrough overlay -->
 <div id="walkthrough-overlay">
@@ -1498,24 +1418,6 @@ body.modal-open{overflow:hidden;position:fixed;width:100%}
     </button>
   </div>
 
-  <div class="section-label">App</div>
-  <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
-    <div style="display:flex;align-items:center;gap:12px;padding:4px 0">
-      <canvas id="settings-pwa-icon" width="44" height="44" style="border-radius:10px;flex-shrink:0"></canvas>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--text)">CashHub PH</div>
-        <div style="font-size:11px;color:var(--text3)" id="pwa-install-status">Loading status...</div>
-      </div>
-    </div>
-    <button class="btn btn-primary btn-sm" id="settings-install-btn" onclick="triggerPwaInstall()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Install as App
-    </button>
-    <div style="font-size:11px;color:var(--text3);text-align:center;line-height:1.6">
-      Install to home screen for full-screen experience,<br>faster launch, and offline use without browser.
-    </div>
-  </div>
-
   <div style="text-align:center;font-size:11px;color:var(--text3);padding:8px 0 4px">
     CashHub PH · Smart Receipt Scanning + Manual Entry · Data stored on device only
   </div>
@@ -1784,7 +1686,7 @@ function showTab(id){
   if(id==='dashboard')renderDashboard();
   if(id==='records')renderRecords();
   if(id==='reports')renderReports();
-  if(id==='settings'){updateDataSummary();renderPwaSettingsStatus();}
+  if(id==='settings')updateDataSummary();
   if(id==='scan'){
     // Only reset to source step if no mid-flow step is active
     const extracted=document.getElementById('scan-step-extracted');
@@ -4517,56 +4419,80 @@ document.addEventListener("DOMContentLoaded", function(){
   initTrialSystem();
   clearScanType(); // start with no type preselected
 });
+</script>
 
-// ════════════════════════════════════════
-// PWA INSTALL PROMPT
-// ════════════════════════════════════════
-let _pwaInstallEvent = null;
 
-// Capture the browser's beforeinstallprompt event
-window.addEventListener('beforeinstallprompt', function(e){
-  e.preventDefault(); // Don't show browser's default mini-infobar
-  _pwaInstallEvent = e;
-  // Draw icon into banner canvas
-  const canvas = document.getElementById('pwa-install-icon');
-  if(canvas && window._pwaIcon192){
-    const img = new Image();
-    img.onload = () => {
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, 48, 48);
-    };
-    img.src = window._pwaIcon192;
+<!-- SW source: type="text/plain" = browser ignores as JS, we read via textContent -->
+<script id="cashhub-sw" type="text/plain">
+var CACHE='cashhub-v1';
+self.addEventListener('install',function(e){
+  e.waitUntil(
+    caches.open(CACHE).then(function(c){
+      return c.addAll([location.href]).catch(function(){});
+    }).then(function(){return self.skipWaiting();})
+  );
+});
+self.addEventListener('activate',function(e){
+  e.waitUntil(
+    caches.keys().then(function(ks){
+      return Promise.all(ks.filter(function(k){return k!==CACHE;}).map(function(k){return caches.delete(k);}));
+    }).then(function(){return self.clients.claim();})
+  );
+});
+self.addEventListener('fetch',function(e){
+  if(e.request.method!=='GET') return;
+  if(e.request.mode==='navigate'){
+    e.respondWith(fetch(e.request).then(function(r){
+      var cl=r.clone();
+      caches.open(CACHE).then(function(c){c.put(e.request,cl);});
+      return r;
+    }).catch(function(){
+      return caches.match(e.request).then(function(r){return r||new Response('Offline',{status:503});});
+    }));
+  } else {
+    e.respondWith(caches.match(e.request).then(function(r){
+      return r||fetch(e.request).catch(function(){return new Response('',{status:408});});
+    }));
   }
-  // Show the banner after 4 seconds (don't interrupt first-open flow)
-  const dismissed = localStorage.getItem('cashhub_pwa_dismissed');
-  if(!dismissed){
+});
+</script>
+
+<script>
+// ── PWA INSTALL PROMPT ────────────────────────────────────────────────────
+var _pwaPrompt=null;
+
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  _pwaPrompt=e;
+  if(!localStorage.getItem('cashhub_pwa_dismissed')){
     setTimeout(showInstallBanner, 4000);
   }
 });
 
-// Also fires when app is already installed
-window.addEventListener('appinstalled', function(){
+window.addEventListener('appinstalled',function(){
   hideInstallBanner();
   localStorage.setItem('cashhub_pwa_dismissed','1');
-  showToast('CashHub PH installed! Open it from your home screen. 🎉');
+  if(typeof showToast==='function') showToast('CashHub PH installed! Open from your home screen 🎉');
 });
 
 function showInstallBanner(){
-  const banner = document.getElementById('pwa-install-banner');
-  if(!banner) return;
-  banner.style.animation = 'none';
-  banner.style.display = 'block';
-  // Trigger animation after display kicks in
-  requestAnimationFrame(function(){
-    requestAnimationFrame(function(){
-      banner.style.animation = 'slideUpBanner 0.35s ease forwards';
-    });
-  });
+  var el=document.getElementById('pwa-install-banner');
+  if(!el) return;
+  // Draw icon into canvas
+  if(window._pwaIcon192){
+    var img=new Image();
+    img.onload=function(){
+      var cv=document.getElementById('pwa-install-icon');
+      if(cv) cv.getContext('2d').drawImage(img,0,0,48,48);
+    };
+    img.src=window._pwaIcon192;
+  }
+  el.classList.add('visible');
 }
 
 function hideInstallBanner(){
-  const banner = document.getElementById('pwa-install-banner');
-  if(banner) banner.style.display = 'none';
+  var el=document.getElementById('pwa-install-banner');
+  if(el) el.classList.remove('visible');
 }
 
 function dismissInstallBanner(){
@@ -4574,103 +4500,22 @@ function dismissInstallBanner(){
   localStorage.setItem('cashhub_pwa_dismissed','1');
 }
 
-async function triggerPwaInstall(){
-  if(!_pwaInstallEvent){ 
-    // Fallback: show manual instructions
-    showPwaManualInstructions();
-    return; 
-  }
-  _pwaInstallEvent.prompt();
-  const result = await _pwaInstallEvent.userChoice;
-  if(result.outcome === 'accepted'){
-    hideInstallBanner();
-    localStorage.setItem('cashhub_pwa_dismissed','1');
-  }
-  _pwaInstallEvent = null;
-}
-
-function showPwaManualInstructions(){
-  hideInstallBanner();
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const msg = isIos
-    ? 'To install:\n\n1. Tap the Share button (box with arrow) at the bottom of Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" — done!'
-    : 'To install:\n\n1. Tap the 3-dot menu (⋮) in Chrome\n2. Tap "Add to Home screen" or "Install app"\n3. Tap "Install" — done!';
-  alert(msg);
-}
-
-function renderPwaSettingsStatus(){
-  const canvas = document.getElementById('settings-pwa-icon');
-  if(canvas && window._pwaIcon192){
-    const img = new Image();
-    img.onload = () => { const ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,44,44); };
-    img.src = window._pwaIcon192;
-  }
-  const statusEl = document.getElementById('pwa-install-status');
-  const installBtn = document.getElementById('settings-install-btn');
-  const isInstalled = window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true;
-  if(isInstalled){
-    if(statusEl) statusEl.textContent = '\u2713 Installed \u2014 running as app';
-    if(installBtn){ installBtn.textContent = 'Already Installed'; installBtn.disabled = true; installBtn.style.opacity = '0.5'; }
-  } else if(_pwaInstallEvent){
-    if(statusEl) statusEl.textContent = 'Ready to install on this device';
-    if(installBtn){ installBtn.disabled = false; installBtn.style.opacity = '1'; }
+function triggerPwaInstall(){
+  if(_pwaPrompt){
+    _pwaPrompt.prompt();
+    _pwaPrompt.userChoice.then(function(r){
+      if(r.outcome==='accepted'){
+        dismissInstallBanner();
+      }
+      _pwaPrompt=null;
+    });
   } else {
-    if(statusEl) statusEl.textContent = 'Use "Add to Home Screen" in your browser menu';
-    if(installBtn){ installBtn.textContent = 'How to Install'; installBtn.onclick = showPwaManualInstructions; }
+    var ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    alert(ios
+      ? 'To install:\n\n1. Tap the Share button at the bottom of Safari\n2. Tap "Add to Home Screen"\n3. Tap "Add"'
+      : 'To install:\n\n1. Tap the 3-dot menu in Chrome\n2. Tap "Add to Home screen" or "Install app"\n3. Tap "Install"');
   }
 }
-</script>
-
-
-<!-- ═══ SERVICE WORKER SOURCE (hidden, read by _registerServiceWorker) ═══ -->
-<!-- type="text/plain" — browser ignores content, JS reads it via textContent -->
-<script id="cashhub-sw-src" type="text/plain">
-const CACHE_NAME = 'cashhub-v31';
-
-self.addEventListener('install', function(e){
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(function(cache){
-        return cache.addAll([location.href]).catch(function(){});
-      })
-      .then(function(){ return self.skipWaiting(); })
-  );
-});
-
-self.addEventListener('activate', function(e){
-  e.waitUntil(
-    caches.keys().then(function(keys){
-      return Promise.all(
-        keys.filter(function(k){ return k !== CACHE_NAME; })
-            .map(function(k){ return caches.delete(k); })
-      );
-    }).then(function(){ return self.clients.claim(); })
-  );
-});
-
-self.addEventListener('fetch', function(e){
-  if(e.request.method !== 'GET') return;
-  if(e.request.mode === 'navigate'){
-    e.respondWith(
-      fetch(e.request)
-        .then(function(r){
-          var clone = r.clone();
-          caches.open(CACHE_NAME).then(function(c){ c.put(e.request, clone); });
-          return r;
-        })
-        .catch(function(){
-          return caches.match(e.request).then(function(r){ return r || new Response('Offline', {status:503}); });
-        })
-    );
-  } else {
-    e.respondWith(
-      caches.match(e.request).then(function(r){
-        return r || fetch(e.request).catch(function(){ return new Response('', {status:408}); });
-      })
-    );
-  }
-});
 </script>
 </body>
 </html>
